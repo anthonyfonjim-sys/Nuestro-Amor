@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Para Soyin - Reconstruyendo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Great+Vibes&family=Montserrat:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        /* --- ESTRUCTURA BASE --- */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow-x: hidden; background-color: #05020a; color: #f8fafc;
+            font-family: 'Montserrat', sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        .font-title { font-family: 'Cinzel', serif; }
+        .font-script { font-family: 'Great Vibes', cursive; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+
+        /* --- FONDO FIJO (ÁRBOL Y ESTRELLAS) --- */
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 0; pointer-events: none;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* --- CONTADOR FIJO EN LA BASE (RAÍCES) --- */
+        #fixed-counter {
+            position: fixed;
+            bottom: 2vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 40;
+            width: 90%;
+            max-width: 450px;
+            background: linear-gradient(180deg, rgba(20, 10, 25, 0.8), rgba(10, 5, 15, 0.95)); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 1rem 1.5rem;
+            border: 1px solid rgba(253, 164, 175, 0.2); 
+            box-shadow: 0 -10px 40px rgba(236, 72, 153, 0.1), inset 0 2px 20px rgba(244, 114, 182, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        /* Efecto cuando el contador absorbe una hoja */
+        #fixed-counter.leaf-hit {
+            animation: romantic-splash 0.6s ease-out;
+            border-color: rgba(253, 164, 175, 0.9);
+            box-shadow: 0 -10px 50px rgba(236, 72, 153, 0.6), inset 0 2px 30px rgba(244, 114, 182, 0.4);
+            transform: translateX(-50%) scale(1.03);
+        }
+
+        @keyframes romantic-splash {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.8); }
+            50% { box-shadow: 0 0 30px 15px rgba(236, 72, 153, 0.4); }
+            100% { box-shadow: 0 0 50px 20px rgba(236, 72, 153, 0); }
+        }
+
+        .compact-time {
+            display: flex; justify-content: space-around; align-items: center;
+        }
+        .time-unit {
+            text-align: center; position: relative;
+        }
+        .time-val {
+            font-family: 'Cinzel', serif; font-size: 1.5rem; font-weight: 700;
+            color: #fbcfe8; text-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+            display: block; line-height: 1;
+        }
+        .time-label {
+            font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.5); margin-top: 4px; display: block;
+        }
+
+        /* --- CONTENIDO DESLIZABLE (MENSAJES) --- */
+        #scroll-layer {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            padding-top: 15vh; /* Espacio superior */
+            padding-bottom: 0; /* Removido para controlar el final exacto */
+            display: flex;
+            flex-direction: column;
+            pointer-events: none; /* Permite interactuar con el canvas donde no hay tarjetas */
+        }
+
+        .content-row {
+            width: 100%; max-width: 900px; margin: 0 auto;
+            display: flex; padding: 0 5%; margin-bottom: 45vh; /* Mucho más espacio para dejar ver el árbol entre mensajes */
+            pointer-events: auto; /* Reactivar pointer events solo en las tarjetas */
+        }
+
+        /* Alternar izquierda/derecha en pantallas grandes */
+        .content-row:nth-child(odd) { justify-content: flex-start; }
+        .content-row:nth-child(even) { justify-content: flex-end; }
+        .content-row.center { justify-content: center; }
+
+        /* --- TARJETAS DE CRISTAL ETEREAS --- */
+        .ethereal-card {
+            background: rgba(15, 8, 20, 0.15); /* Más transparente */
+            backdrop-filter: blur(4px); /* Menos blur para ver el árbol a través */
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 20px; 
+            padding: 2rem; 
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 192, 203, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            /* Animación de flotación suave infinita */
+            animation: float-idle 6s ease-in-out infinite;
+        }
+
+        @keyframes float-idle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Brillo sutil en el borde superior */
+        .ethereal-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.5), transparent);
+        }
+
+        /* --- ANIMACIONES DE APARICIÓN (SCROLL) --- */
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px) scale(0.95);
+            transition: all 1.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* --- INTERACCIÓN FINAL "TE AMO" --- */
+        .finale-container {
+            text-align: center;
+            min-height: 100vh; /* Ocupa la pantalla completa al final */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Fija el texto en la parte superior del límite */
+            padding-top: 15vh;
+            margin-bottom: 0 !important; /* Tope absoluto para el scroll */
+            position: relative;
+        }
+        
+        .interactive-love {
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            text-shadow: 0 0 15px rgba(236, 72, 153, 0.8), 0 0 30px rgba(139, 92, 246, 0.6);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-block;
+            animation: pulse-glow 3s infinite alternate;
+        }
+        .interactive-love:hover {
+            transform: scale(1.1) translateY(-5px);
+            text-shadow: 0 0 25px rgba(255, 255, 255, 0.9), 0 0 40px rgba(236, 72, 153, 0.9);
+        }
+        .interactive-love:active { transform: scale(0.9); }
+
+        @keyframes pulse-glow {
+            0% { filter: drop-shadow(0 0 5px rgba(236,72,153,0.4)); }
+            100% { filter: drop-shadow(0 0 20px rgba(236,72,153,0.8)); }
+        }
+
+        #secret-message {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 2s ease;
+            pointer-events: none;
+        }
+        #secret-message.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- PALABRAS FLOTANTES (7 MENSAJES) --- */
+        .floating-word {
+            position: fixed;
+            bottom: 14vh; /* Empieza justo por encima del reloj */
+            font-family: 'Great Vibes', cursive;
+            color: #ffffff;
+            font-size: 2.2rem;
+            text-shadow: 0 0 15px rgba(236, 72, 153, 0.9), 0 0 30px rgba(139, 92, 246, 0.8);
+            pointer-events: none;
+            z-index: 35;
+            animation: floatUpWord 5.5s ease-in-out forwards;
+            opacity: 0;
+            white-space: nowrap;
+        }
+
+        @keyframes floatUpWord {
+            0% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+            20% { opacity: 1; transform: translate(-50%, 0px) scale(1); }
+            80% { opacity: 1; transform: translate(-50%, -60px) scale(1.05); }
+            100% { opacity: 0; transform: translate(-50%, -80px) scale(1.1); }
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- CANVAS FIJO DE FONDO -->
+<div id="canvas-container">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<!-- CONTADOR FIJO EN LA BASE (Las raíces del árbol) -->
+<div id="fixed-counter">
+    <div class="text-center mb-3">
+        <p class="text-[10px] md:text-xs text-pink-200/80 font-serif italic tracking-widest uppercase">Cada segundo es una promesa</p>
+    </div>
+    <div class="compact-time">
+        <div class="time-unit">
+            <span id="days" class="time-val">0</span>
+            <span class="time-label">Días</span>
+        </div>
+        <div class="time-unit text-pink-400/50 text-xl font-light mb-2">:</div>
+        <div class="time-unit">
+            <span id="hours" class="time-val">0</span>
+            <span class="time-label">Hrs</span>
+        </div>
+        <div class="time-unit text-pink-400/50 text-xl font-light mb-2">:</div>
+        <div class="time-unit">
+            <span id="minutes" class="time-val">0</span>
+            <span class="time-label">Min</span>
+        </div>
+        <div class="time-unit text-pink-400/50 text-xl font-light mb-2">:</div>
+        <div class="time-unit">
+            <span id="seconds" class="time-val">0</span>
+            <span class="time-label">Seg</span>
+        </div>
+    </div>
+</div>
+
+<!-- CAPA DE MENSAJES DESLIZABLES -->
+<div id="scroll-layer">
+    
+    <!-- Flecha indicadora mejorada y más visible -->
+    <div class="w-full text-center mb-[20vh] reveal active pointer-events-auto mt-4">
+        <p class="text-[11px] uppercase tracking-[0.3em] text-white drop-shadow-[0_0_12px_rgba(236,72,153,1)] mb-3 font-semibold animate-pulse">
+            Desciende en el tiempo
+        </p>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto text-white drop-shadow-[0_0_12px_rgba(236,72,153,1)] animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+    </div>
+
+    <!-- Fragmento 1: Izquierda -->
+    <div class="content-row">
+        <div class="ethereal-card reveal">
+            <h3 class="font-title text-xl text-pink-200 mb-3 tracking-wide">La Semilla de Hoy</h3>
+            <p class="text-gray-300 text-sm leading-relaxed font-light mb-3">
+                Comprendí que un error puede quebrar las ramas, pero si las raíces son verdaderas, el árbol vuelve a florecer.
+            </p>
+            <p class="text-gray-300 text-sm leading-relaxed font-light italic border-l-2 border-pink-500/50 pl-3">
+                No te ofrezco palabras al viento; te ofrezco mi constancia, anclada en la tierra de nuestro amor.
+            </p>
+        </div>
+    </div>
+
+    <!-- Fragmento 2: Derecha -->
+    <div class="content-row">
+        <div class="ethereal-card reveal" style="animation-delay: 1s;">
+            <h3 class="font-title text-xl text-indigo-300 mb-3 tracking-wide text-right">Mi Refugio Seguro</h3>
+            <p class="text-gray-300 text-sm leading-relaxed font-light mb-3 text-right">
+                Paso a paso, gota a gota, cuidaré lo que somos. Este árbol crece porque mi voluntad de hacerte feliz es inagotable.
+            </p>
+            <p class="text-indigo-200/80 text-sm leading-relaxed font-serif text-right">
+                "Eres el lugar al que mi alma siempre quiere regresar."
+            </p>
+        </div>
+    </div>
+
+    <!-- Fragmento 3: Izquierda -->
+    <div class="content-row">
+        <div class="ethereal-card reveal" style="animation-delay: 0.5s;">
+            <!-- Icono sutil de constelación -->
+            <svg class="absolute -right-4 -top-4 w-24 h-24 text-pink-500/10 rotate-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4h7.6l-6.2 4.6 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4-6.2-4.6h7.6z"/></svg>
+            <h3 class="font-title text-xl text-pink-100 mb-3 tracking-wide relative z-10">Escrito en las Estrellas</h3>
+            <p class="text-gray-200 text-sm md:text-base leading-relaxed font-serif italic relative z-10">
+                "Hay almas que se encuentran después de haber sido escritas en las estrellas desde el principio de los tiempos. Tú eres mi coincidencia más hermosa, y mi decisión de todos los días."
+            </p>
+        </div>
+    </div>
+
+    <!-- Cierre Interactivo: Centro (Tope de la página) -->
+    <div class="content-row center finale-container reveal pointer-events-auto">
+        <div class="w-full">
+            <span onclick="triggerGrandFinale(event)" class="font-script text-6xl md:text-8xl text-white interactive-love">
+                Te Amo Soyin
+            </span>
+            <p class="text-[10px] md:text-xs text-pink-300 tracking-[0.3em] uppercase mt-6 opacity-70 animate-pulse">
+                (Toca mi corazón)
+            </p>
+            
+            <!-- Mensaje Secreto Revelado -->
+            <div id="secret-message" class="mt-8">
+                <div class="h-px w-16 bg-gradient-to-r from-transparent via-pink-400 to-transparent mx-auto mb-4"></div>
+                <p class="font-title text-sm md:text-base text-pink-100 tracking-[0.2em] font-bold">
+                    SIEMPRE FUISTE TÚ. SIEMPRE SERÁS TÚ.
+                </p>
+                <p class="font-serif italic text-gray-400 text-sm mt-2">Mi amor eterno.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /* =========================================
+       1. LÓGICA DEL CONTADOR (FIJO)
+       ========================================= */
+    const START_DATE = new Date("2025-12-17T00:00:00"); 
+    function updateCounter() {
+        const now = new Date();
+        const diff = now - START_DATE;
+        if (diff < 0) return;
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        const dayEl = document.getElementById('days');
+        if (dayEl) {
+            dayEl.innerText = days;
+            document.getElementById('hours').innerText = hours.toString().padStart(2, '0');
+            document.getElementById('minutes').innerText = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').innerText = seconds.toString().padStart(2, '0');
+        }
+    }
+    setInterval(updateCounter, 1000);
+    updateCounter();
+
+    /* =========================================
+       NUEVO: LAS 7 PALABRAS ESPECIALES FLOTANTES
+       ========================================= */
+    const specialMessages = [
+        "Eres mi paz", 
+        "Mi luz eterna", 
+        "Dueña de mi corazón", 
+        "Para siempre tú", 
+        "Mi amor infinito", 
+        "Mi destino hermoso", 
+        "Te elijo cada día"
+    ];
+    let msgIndex = 0;
+
+    function spawnFloatingMessage() {
+        const msg = document.createElement('div');
+        msg.className = 'floating-word';
+        msg.innerText = specialMessages[msgIndex];
+        
+        // Ciclo exacto de 7 mensajes
+        msgIndex = (msgIndex + 1) % 7;
+        
+        // Posición levemente aleatoria cerca del centro para que no suban exactamente por la misma línea
+        const offset = (Math.random() - 0.5) * 60; // +/- 30px desde el centro
+        msg.style.left = `calc(50% + ${offset}px)`;
+        
+        document.body.appendChild(msg);
+        
+        // Se elimina del DOM al terminar la animación
+        setTimeout(() => msg.remove(), 5500);
+    }
+
+    // Aparece un mensaje nuevo exactamente cada 7 segundos (honrando tu número especial)
+    setInterval(spawnFloatingMessage, 7000);
+    // El primer mensaje aparece a los 2 segundos de entrar a la página
+    setTimeout(spawnFloatingMessage, 2000);
+
+    /* =========================================
+       2. INTERSECTION OBSERVER (Animación Scroll)
+       ========================================= */
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+            }
+        });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    /* =========================================
+       3. MAGIA DEL CANVAS (Árbol, Estelas, Ondas)
+       ========================================= */
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    let w, h;
+    
+    // Arrays de objetos en pantalla
+    let stars = []; 
+    let leaves = [];
+    let particles = []; // Para explosiones y estelas
+    let shockwaves = []; // Para la onda expansiva
+    let ripples = []; // NUEVO: Para los anillos de luz al chocar con el tiempo
+    
+    const maxDepth = 9;
+    const branchAngle = 0.35; 
+    let finaleTriggered = false; // Estado del gran final
+    
+    // Paleta de colores para las hojas: rojo, violeta, celeste, rosa
+    const heartColors = ['#ef4444', '#a855f7', '#38bdf8', '#ec4899', '#f472b6', '#dc2626', '#8b5cf6'];
+
+    // Función determinista para que las hojas del árbol no parpadeen cambiando de color
+    function getTreeLeafColor(depth, offset) {
+        const idx = Math.floor(Math.abs(Math.sin(depth * 12.34 + offset * 56.78)) * heartColors.length) % heartColors.length;
+        return heartColors[idx];
+    }
+    
+    // Coordenadas del ratón/dedo para la estela mágica
+    let mouse = { x: -100, y: -100 };
+
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX; mouse.y = e.clientY;
+        addTrailSparkle(mouse.x, mouse.y);
+    });
+    window.addEventListener('touchmove', (e) => {
+        mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+        addTrailSparkle(mouse.x, mouse.y);
+    }, {passive: true});
+
+    function addTrailSparkle(x, y) {
+        if(Math.random() > 0.5) {
+            particles.push(new Particle(x, y, true)); // Estela suave
+        }
+    }
+
+    function drawHeart(x, y, size, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(size, size);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-5, -5, -8, 0, 0, 8); 
+        ctx.bezierCurveTo(8, 0, 5, -5, 0, 0);  
+        ctx.fill();
+        ctx.restore();
+    }
+
+    /* --- EVENTO DE GRAN FINAL "TE AMO" --- */
+    window.triggerGrandFinale = function(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clickX = e.clientX - rect.left;
+        let clickY = e.clientY - rect.top;
+
+        // 0. Flash romántico y suave en toda la pantalla
+        let flash = document.createElement('div');
+        flash.style.position = 'fixed';
+        flash.style.top = '0'; flash.style.left = '0'; flash.style.width = '100vw'; flash.style.height = '100vh';
+        flash.style.backgroundColor = 'rgba(255, 192, 203, 0.8)'; // Rosa pastel claro
+        flash.style.zIndex = '9999';
+        flash.style.pointerEvents = 'none';
+        flash.style.transition = 'opacity 2s ease-out';
+        document.body.appendChild(flash);
+        
+        requestAnimationFrame(() => {
+            flash.style.opacity = '0';
+        });
+        setTimeout(() => flash.remove(), 2000);
+
+        // 1. Onda Expansiva
+        shockwaves.push({ x: clickX, y: clickY, radius: 10, alpha: 1, color: '236, 72, 153' });
+
+        // 2. Explosión masiva PURAMENTE de corazones que llenan la pantalla
+        for(let i=0; i<120; i++) {
+            let p = new Particle(clickX, clickY, false, true);
+            p.isHeart = true; // Forzamos que todos sean hermosos corazones
+            p.size = Math.random() * 1.5 + 0.5; // Corazones un poco más grandes
+            particles.push(p);
+        }
+
+        // 3. Revelar mensaje secreto
+        document.getElementById('secret-message').classList.add('revealed');
+        
+        // 4. Hacer que las hojas caigan en cascada brevemente
+        finaleTriggered = true;
+        setTimeout(() => finaleTriggered = false, 4000);
+    };
+
+    /* --- CLASE PARTICULA (Estela y Explosión) --- */
+    class Particle {
+        constructor(x, y, isTrail = false, isExplosive = false) {
+            this.x = x; this.y = y;
+            this.isTrail = isTrail;
+            
+            if (isTrail) {
+                // Comportamiento de estela suave
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = (Math.random() - 0.5) * 1 + 0.5; // cae despacio
+                this.size = Math.random() * 0.3 + 0.1;
+                this.life = 0.8;
+                this.decay = Math.random() * 0.03 + 0.02;
+                this.gravity = 0;
+                this.isHeart = false;
+            } else {
+                // Comportamiento de explosión
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = isExplosive ? Math.random() * 15 + 5 : Math.random() * 8 + 2;
+                this.vx = Math.cos(angle) * velocity;
+                this.vy = Math.sin(angle) * velocity - (isExplosive ? 5 : 2); 
+                this.size = Math.random() * 0.8 + 0.3;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.015 + 0.01;
+                this.gravity = 0.2;
+                this.isHeart = Math.random() > 0.2; 
+            }
+            
+            const colors = ['#f472b6', '#ec4899', '#db2777', '#fff', '#c084fc'];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+            this.rotation = Math.random() * Math.PI;
+            this.rotSpeed = (Math.random() - 0.5) * 0.2;
+        }
+        update() {
+            this.vy += this.gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life -= this.decay;
+            this.rotation += this.rotSpeed;
+        }
+        draw() {
+            if (this.life <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.life;
+            if (this.isHeart) {
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                drawHeart(0, 0, this.size, this.color);
+            } else {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    /* --- CLASE ONDA DE IMPACTO LIGERA (Ripples) --- */
+    class Ripple {
+        constructor(x, y, color) {
+            this.x = x; this.y = y;
+            this.radius = 2;
+            this.alpha = 1;
+            this.color = color;
+            this.speed = Math.random() * 1.5 + 1;
+            this.thickness = Math.random() * 2 + 1;
+        }
+        update() {
+            this.radius += this.speed;
+            this.alpha -= 0.04; // Se desvanece suavemente
+        }
+        draw() {
+            if (this.alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = this.thickness;
+            ctx.beginPath();
+            // Aplastar un poco el círculo para que parezca perspectiva
+            ctx.ellipse(this.x, this.y, this.radius * 1.5, this.radius, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    /* --- CLASE HOJA (Atracción hacia el contador fijo) --- */
+    class Leaf {
+        constructor(startX, startY, customColor) {
+            this.x = startX; this.y = startY;
+            this.vx = (Math.random() - 0.5) * 3; // Impulso inicial
+            this.vy = Math.random() * 1 + 0.5;
+            this.size = Math.random() * 0.5 + 0.3; 
+            this.originalSize = this.size;
+            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swayOffset = Math.random() * Math.PI * 2;
+            this.opacity = 1;
+            this.rotation = Math.random() * Math.PI * 2;
+            this.rotSpeed = (Math.random() - 0.5) * 0.05;
+            this.color = customColor || heartColors[Math.floor(Math.random() * heartColors.length)];
+        }
+        update() {
+            const counterEl = document.getElementById('fixed-counter');
+            const rect = counterEl.getBoundingClientRect();
+            
+            // Punto objetivo: el centro superior del contador para que parezca que entran ahí
+            const targetX = rect.left + rect.width / 2;
+            const targetY = rect.top + 10;
+            
+            const dx = targetX - this.x;
+            const dy = targetY - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist > 25) {
+                // FÍSICA MEJORADA: Curva más suave y natural
+                // La fuerza aumenta progresivamente al acercarse, pero con un límite
+                const pull = Math.min(0.06, 20 / (dist + 10)); 
+                
+                this.vx += (dx / dist) * pull;
+                this.vy += (dy / dist) * pull * 1.5; // Atracción Y un poco más fuerte para evitar que orbiten
+                
+                // Efecto de viento (Sway) que disminuye al acercarse al objetivo
+                const windFactor = dist > 150 ? 1 : dist / 150;
+                const wind = Math.sin(Date.now() * 0.001 * this.swaySpeed + this.swayOffset) * 0.5 * windFactor;
+                
+                this.x += this.vx + wind;
+                this.y += this.vy;
+                
+                // Fricción fluida
+                this.vx *= 0.94;
+                this.vy *= 0.94;
+
+                // Encogimiento mágico cuando están a punto de tocar el reloj
+                if (dist < 80) {
+                    this.size *= 0.94;
+                    this.rotSpeed *= 1.1; // Giran más rápido al ser absorbidas
+                }
+
+            } else {
+                // Absorbida por el contador
+                this.opacity = 0; 
+                
+                // Efecto visual en el HTML
+                counterEl.classList.remove('leaf-hit');
+                void counterEl.offsetWidth; 
+                counterEl.classList.add('leaf-hit');
+                
+                // NUEVO EFECTO 1: Anillo de luz en el punto exacto de impacto
+                ripples.push(new Ripple(this.x, this.y, this.color));
+                ripples.push(new Ripple(this.x, this.y, '#ffffff')); // Un segundo anillo blanco para más brillo
+                
+                // NUEVO EFECTO 2: Chispa final romántica mejorada
+                for(let p=0; p<4; p++) {
+                    let spark = new Particle(this.x, this.y, false, false);
+                    spark.isHeart = Math.random() > 0.3; // Mezcla de corazones y chispas redondas
+                    spark.color = Math.random() > 0.5 ? this.color : '#fff'; // Destellos blancos y del color de la hoja
+                    spark.size = Math.random() * 0.3 + 0.15;
+                    spark.vy = -(Math.random() * 2 + 0.5); // Salen disparadas hacia arriba
+                    spark.vx = (Math.random() - 0.5) * 2.5; // Abanico más amplio
+                    spark.gravity = -0.01; // Flotan suavemente
+                    particles.push(spark);
+                }
+            }
+
+            this.rotation += this.rotSpeed;
+        }
+        draw() {
+            if (this.opacity <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            drawHeart(0, 0, this.size, this.color);
+            ctx.restore();
+        }
+    }
+
+    function spawnFallingLeaf(x, y, color) {
+        // Aumentado el límite para que caigan muchas más hojas
+        if (leaves.length < 150) leaves.push(new Leaf(x, y, color));
+    }
+
+    function drawTree(x, y, len, angle, depth) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.lineWidth = depth * 0.7; 
+        
+        // Color del árbol: oscila levemente si se activó el finale
+        const brightness = finaleTriggered ? (30 + (10 - depth)*5) : (15 + (10 - depth) * 4);
+        const hue = finaleTriggered ? 330 : 280; // Cambia hacia rosa en el finale
+        ctx.strokeStyle = `hsl(${hue}, 30%, ${brightness}%)`; 
+        
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -len);
+        ctx.stroke();
+
+        if (depth > 0) {
+            ctx.translate(0, -len);
+            const shrink = 0.75;
+            drawTree(0, 0, len * shrink, -branchAngle, depth - 1);
+            drawTree(0, 0, len * shrink, branchAngle, depth - 1);
+        } else {
+            ctx.translate(0, -len);
+            
+            // Hojas base con colores variados (Rojo, violeta, celeste, rosa)
+            const c1 = getTreeLeafColor(depth, angle + 1);
+            const c2 = getTreeLeafColor(depth, angle + 2);
+            const c3 = getTreeLeafColor(depth, angle + 3);
+
+            drawHeart(0, 0, 0.8, finaleTriggered ? '#fbcfe8' : c1); 
+            drawHeart(-5, 5, 0.6, finaleTriggered ? '#fff' : c2); 
+            drawHeart(5, 5, 0.6, finaleTriggered ? '#fbcfe8' : c3); 
+            
+            // Probabilidad de caer aumentada considerablemente
+            const dropChance = finaleTriggered ? 0.08 : 0.006;
+            if (Math.random() < dropChance) { 
+                const matrix = ctx.getTransform();
+                spawnFallingLeaf(matrix.e, matrix.f, c1); 
+            }
+        }
+        ctx.restore();
+    }
+
+    function initStars() {
+        stars = [];
+        for(let i=0; i<150; i++) {
+            stars.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: Math.random() * 1.5,
+                opacity: Math.random(),
+                speed: Math.random() * 0.02,
+                color: Math.random() > 0.8 ? '#fbcfe8' : '#ffffff'
+            });
+        }
+    }
+
+    function drawStars() {
+        ctx.save();
+        stars.forEach(star => {
+            ctx.fillStyle = star.color;
+            ctx.globalAlpha = star.opacity;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+            star.opacity += star.speed;
+            if(star.opacity > 1 || star.opacity < 0.1) star.speed = -star.speed;
+        });
+        ctx.restore();
+    }
+
+    function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        initStars();
+    }
+    window.addEventListener('resize', resize);
+
+    function animate() {
+        // Fondo degradado profundo
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#020105');   // Casi negro espacial
+        gradient.addColorStop(0.5, '#0a0514'); // Morado oscurísimo
+        gradient.addColorStop(1, '#1a0b26');   // Base púrpura
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+
+        drawStars();
+
+        // Luna brillante en la esquina superior derecha
+        ctx.save();
+        ctx.shadowBlur = 60;
+        ctx.shadowColor = finaleTriggered ? "rgba(255, 100, 150, 0.8)" : "rgba(255, 240, 250, 0.5)";
+        ctx.fillStyle = "rgba(255, 248, 252, 0.9)"; 
+        ctx.beginPath();
+        // Coordenadas fijas en la esquina (con responsividad)
+        let moonX = Math.max(w - 120, w * 0.85);
+        let moonY = Math.min(100, h * 0.15);
+        let moonRadius = Math.min(w, h) * 0.08;
+        ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Sutiles cráteres/brillo interior para que parezca más luna
+        ctx.fillStyle = "rgba(200, 180, 200, 0.08)";
+        ctx.beginPath();
+        ctx.arc(moonX - moonRadius*0.2, moonY - moonRadius*0.2, moonRadius*0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Dibujar Ondas Expansivas (Shockwaves)
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+            let sw = shockwaves[i];
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = `rgba(${sw.color}, ${sw.alpha})`;
+            ctx.stroke();
+            ctx.fillStyle = `rgba(${sw.color}, ${sw.alpha * 0.1})`;
+            ctx.fill();
+            ctx.restore();
+            
+            sw.radius += 15; // Velocidad de expansión
+            sw.alpha -= 0.02; // Desvanecimiento
+            
+            if(sw.alpha <= 0) shockwaves.splice(i, 1);
+        }
+
+        // --- POSICIÓN DINÁMICA DEL ÁRBOL ---
+        // El árbol nace EXACTAMENTE donde está la parte superior del contador fijo
+        const counterEl = document.getElementById('fixed-counter');
+        const counterRect = counterEl.getBoundingClientRect();
+        // treeBaseY es la coordenada Y de la punta superior del contador
+        const treeBaseY = counterRect.top + 10; 
+        
+        const treeLen = Math.min(h * 0.23, w * 0.20);
+        drawTree(w / 2, treeBaseY, treeLen, 0, maxDepth);
+
+        // Actualizar Elementos
+        for (let i = leaves.length - 1; i >= 0; i--) {
+            leaves[i].update();
+            leaves[i].draw();
+            if (leaves[i].opacity <= 0) leaves.splice(i, 1);
+        }
+
+        // Actualizar anillos de luz (Ripples)
+        for (let i = ripples.length - 1; i >= 0; i--) {
+            ripples[i].update();
+            ripples[i].draw();
+            if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            particles[i].draw();
+            if (particles[i].life <= 0) particles.splice(i, 1);
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    // Iniciar magia
+    resize();
+    animate();
+
+</script>
+</body>
+</html>
