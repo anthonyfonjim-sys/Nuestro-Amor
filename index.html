@@ -203,9 +203,68 @@
             100% { opacity: 0; transform: translate(-50%, -80px) scale(1.1); }
         }
 
+        /* --- CONTROL DE MÚSICA --- */
+        #music-toggle {
+            position: fixed;
+            top: 3vh;
+            left: 5vw; /* Cambiado de right a left */
+            z-index: 50;
+            background: rgba(20, 10, 25, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(253, 164, 175, 0.3);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fbcfe8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.2);
+        }
+        #music-toggle:hover {
+            transform: scale(1.1);
+            background: rgba(236, 72, 153, 0.3);
+            box-shadow: 0 4px 20px rgba(236, 72, 153, 0.5);
+        }
+        #music-toggle.playing .music-icon-play { display: none; }
+        #music-toggle:not(.playing) .music-icon-pause { display: none; }
+        
+        .pulse-music {
+            animation: pulse-music 2s infinite;
+        }
+        @keyframes pulse-music {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
+        }
+
     </style>
 </head>
 <body>
+
+<!-- MÚSICA DE FONDO -->
+<audio id="bg-music">
+    <!-- Enlace de Dropbox modificado para streaming directo -->
+    <source src="https://dl.dropboxusercontent.com/scl/fi/4k8rdinou76qnl92j792d/romeo_santos_prince_royce_-_dardos_official_lyric_video-nicooponcee.mp3?rlkey=jf16jpx7id1c5z8wgy53pjtlo&st=jxmztsco" type="audio/mpeg">
+</audio>
+
+<!-- MENSAJE FINAL DE LA CANCIÓN -->
+<div id="song-end-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center pointer-events-none z-[60] opacity-0 transition-opacity duration-[3000ms]">
+    <h2 class="font-script text-5xl md:text-7xl text-pink-100 drop-shadow-[0_0_25px_rgba(236,72,153,0.9)] text-center tracking-wide">
+        Quédate a mi lado...
+    </h2>
+</div>
+
+<!-- BOTÓN DE MÚSICA -->
+<button id="music-toggle" class="pulse-music" onclick="toggleMusic()">
+    <!-- Icono Play -->
+    <svg class="music-icon-play w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+    <!-- Icono Pause (Notas musicales) -->
+    <svg class="music-icon-pause w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+</button>
 
 <!-- CANVAS FIJO DE FONDO -->
 <div id="canvas-container">
@@ -308,13 +367,55 @@
                     SIEMPRE FUISTE TÚ. SIEMPRE SERÁS TÚ.
                 </p>
                 <p class="font-serif italic text-gray-400 text-sm mt-2">Mi amor eterno.</p>
-            </div>
         </div>
     </div>
-
 </div>
 
 <script>
+    /* =========================================
+       0. CONTROL DE MÚSICA Y AUTOPLAY
+       ========================================= */
+    const music = document.getElementById('bg-music');
+    const musicToggle = document.getElementById('music-toggle');
+    let isPlaying = false;
+    let firstInteraction = false;
+
+    // Función para alternar Play/Pause
+    window.toggleMusic = function() {
+        if (isPlaying) {
+            music.pause();
+            musicToggle.classList.remove('playing');
+            musicToggle.classList.add('pulse-music');
+        } else {
+            music.play().catch(e => console.log("Audio bloqueado:", e));
+            musicToggle.classList.add('playing');
+            musicToggle.classList.remove('pulse-music');
+        }
+        isPlaying = !isPlaying;
+    };
+
+    // Intentar reproducir automáticamente en la primera interacción del usuario
+    function unlockAudio() {
+        if (!firstInteraction) {
+            music.play().then(() => {
+                isPlaying = true;
+                musicToggle.classList.add('playing');
+                musicToggle.classList.remove('pulse-music');
+            }).catch(e => console.log("Audio bloqueado por el navegador, requiere clic en el botón."));
+            firstInteraction = true;
+            
+            // Remover los listeners una vez activado para mejorar rendimiento
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('scroll', unlockAudio);
+        }
+    }
+
+    // Eventos para detectar interacción y desbloquear el audio
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio, {passive: true});
+    document.addEventListener('scroll', unlockAudio, {passive: true});
+
     /* =========================================
        1. LÓGICA DEL CONTADOR (FIJO)
        ========================================= */
@@ -344,13 +445,13 @@
        NUEVO: LAS 7 PALABRAS ESPECIALES FLOTANTES
        ========================================= */
     const specialMessages = [
-        "Eres mi paz", 
-        "Mi luz eterna", 
-        "Dueña de mi corazón", 
-        "Para siempre tú", 
-        "Mi amor infinito", 
-        "Mi destino hermoso", 
-        "Te elijo cada día"
+        "Eres mi paz 🕊️", 
+        "Mi luz eterna ✨", 
+        "Dueña de mi corazón 💖", 
+        "Para siempre tú 💍", 
+        "Mi amor infinito 🌌", 
+        "Mi destino hermoso 🌸", 
+        "Te elijo cada día 🥺"
     ];
     let msgIndex = 0;
 
@@ -578,22 +679,29 @@
     class Leaf {
         constructor(startX, startY, customColor) {
             this.x = startX; this.y = startY;
-            this.vx = (Math.random() - 0.5) * 3; // Impulso inicial
-            this.vy = Math.random() * 1 + 0.5;
-            this.size = Math.random() * 0.5 + 0.3; 
+            
+            // DESPRENDIMIENTO ELEGANTE: Un pequeño suspiro hacia arriba y a los lados antes de caer
+            this.vx = (Math.random() - 0.5) * 2.5; 
+            this.vy = -(Math.random() * 1.2 + 0.3); 
+            
+            this.gravity = Math.random() * 0.015 + 0.025;
+            this.age = 0; 
+            
+            // TAMAÑO AUMENTADO: Hojas de corazón más grandes y visibles
+            this.size = Math.random() * 0.9 + 0.6; 
             this.originalSize = this.size;
-            this.swaySpeed = Math.random() * 0.02 + 0.01;
+            this.swaySpeed = Math.random() * 0.015 + 0.005; 
             this.swayOffset = Math.random() * Math.PI * 2;
             this.opacity = 1;
             this.rotation = Math.random() * Math.PI * 2;
-            this.rotSpeed = (Math.random() - 0.5) * 0.05;
+            this.rotSpeed = (Math.random() - 0.5) * 0.05; 
             this.color = customColor || heartColors[Math.floor(Math.random() * heartColors.length)];
         }
         update() {
+            this.age++; 
             const counterEl = document.getElementById('fixed-counter');
             const rect = counterEl.getBoundingClientRect();
             
-            // Punto objetivo: el centro superior del contador para que parezca que entran ahí
             const targetX = rect.left + rect.width / 2;
             const targetY = rect.top + 10;
             
@@ -602,56 +710,51 @@
             const dist = Math.sqrt(dx*dx + dy*dy);
 
             if (dist > 25) {
-                // FÍSICA MEJORADA: Curva más suave y natural
-                // La fuerza aumenta progresivamente al acercarse, pero con un límite
-                const pull = Math.min(0.06, 20 / (dist + 10)); 
+                // FASE 1: CAÍDA LIBRE Y ACELERACIÓN
+                this.vy += this.gravity; 
+                
+                // FASE 2: ATRACCIÓN MÁGICA DIFERIDA
+                const pullPhase = Math.min(1, this.age / 120); 
+                const pull = Math.min(0.08, 30 / (dist + 10)) * pullPhase; 
                 
                 this.vx += (dx / dist) * pull;
-                this.vy += (dy / dist) * pull * 1.5; // Atracción Y un poco más fuerte para evitar que orbiten
+                this.vy += (dy / dist) * pull * 1.2; 
                 
-                // Efecto de viento (Sway) que disminuye al acercarse al objetivo
                 const windFactor = dist > 150 ? 1 : dist / 150;
-                const wind = Math.sin(Date.now() * 0.001 * this.swaySpeed + this.swayOffset) * 0.5 * windFactor;
+                const wind = Math.sin(Date.now() * 0.001 * this.swaySpeed + this.swayOffset) * 1.5 * windFactor;
                 
                 this.x += this.vx + wind;
                 this.y += this.vy;
                 
-                // Fricción fluida
-                this.vx *= 0.94;
-                this.vy *= 0.94;
+                this.vx *= 0.95;
+                this.vy *= 0.985; 
 
-                // Encogimiento mágico cuando están a punto de tocar el reloj
                 if (dist < 80) {
                     this.size *= 0.94;
-                    this.rotSpeed *= 1.1; // Giran más rápido al ser absorbidas
+                    this.rotSpeed *= 1.15; 
                 }
 
             } else {
-                // Absorbida por el contador
                 this.opacity = 0; 
                 
-                // Efecto visual en el HTML
                 counterEl.classList.remove('leaf-hit');
                 void counterEl.offsetWidth; 
                 counterEl.classList.add('leaf-hit');
                 
-                // NUEVO EFECTO 1: Anillo de luz en el punto exacto de impacto
                 ripples.push(new Ripple(this.x, this.y, this.color));
-                ripples.push(new Ripple(this.x, this.y, '#ffffff')); // Un segundo anillo blanco para más brillo
+                ripples.push(new Ripple(this.x, this.y, '#ffffff')); 
                 
-                // NUEVO EFECTO 2: Chispa final romántica mejorada
                 for(let p=0; p<4; p++) {
                     let spark = new Particle(this.x, this.y, false, false);
-                    spark.isHeart = Math.random() > 0.3; // Mezcla de corazones y chispas redondas
-                    spark.color = Math.random() > 0.5 ? this.color : '#fff'; // Destellos blancos y del color de la hoja
-                    spark.size = Math.random() * 0.3 + 0.15;
-                    spark.vy = -(Math.random() * 2 + 0.5); // Salen disparadas hacia arriba
-                    spark.vx = (Math.random() - 0.5) * 2.5; // Abanico más amplio
-                    spark.gravity = -0.01; // Flotan suavemente
+                    spark.isHeart = Math.random() > 0.3; 
+                    spark.color = Math.random() > 0.5 ? this.color : '#fff'; 
+                    spark.size = Math.random() * 0.4 + 0.2; // Chispas un poco más grandes
+                    spark.vy = -(Math.random() * 2 + 0.5); 
+                    spark.vx = (Math.random() - 0.5) * 2.5; 
+                    spark.gravity = -0.01; 
                     particles.push(spark);
                 }
             }
-
             this.rotation += this.rotSpeed;
         }
         draw() {
@@ -666,8 +769,8 @@
     }
 
     function spawnFallingLeaf(x, y, color) {
-        // Aumentado el límite para que caigan muchas más hojas
-        if (leaves.length < 150) leaves.push(new Leaf(x, y, color));
+        // Reducido drásticamente el límite para que sea un efecto delicado y no una tormenta
+        if (leaves.length < 25) leaves.push(new Leaf(x, y, color));
     }
 
     function drawTree(x, y, len, angle, depth) {
@@ -699,12 +802,13 @@
             const c2 = getTreeLeafColor(depth, angle + 2);
             const c3 = getTreeLeafColor(depth, angle + 3);
 
-            drawHeart(0, 0, 0.8, finaleTriggered ? '#fbcfe8' : c1); 
-            drawHeart(-5, 5, 0.6, finaleTriggered ? '#fff' : c2); 
-            drawHeart(5, 5, 0.6, finaleTriggered ? '#fbcfe8' : c3); 
+            // Corazones estáticos del árbol también más grandes
+            drawHeart(0, 0, 1.1, finaleTriggered ? '#fbcfe8' : c1); 
+            drawHeart(-6, 6, 0.8, finaleTriggered ? '#fff' : c2); 
+            drawHeart(6, 6, 0.8, finaleTriggered ? '#fbcfe8' : c3); 
             
-            // Probabilidad de caer aumentada considerablemente
-            const dropChance = finaleTriggered ? 0.08 : 0.006;
+            // Probabilidad de caer reducida para que sea un "goteo" muy especial y sutil
+            const dropChance = finaleTriggered ? 0.05 : 0.0015;
             if (Math.random() < dropChance) { 
                 const matrix = ctx.getTransform();
                 spawnFallingLeaf(matrix.e, matrix.f, c1); 
@@ -831,6 +935,71 @@
 
         requestAnimationFrame(animate);
     }
+
+    // Escuchar cuando la canción termina para mostrar el mensaje especial
+    music.addEventListener('ended', () => {
+        const overlay = document.getElementById('song-end-overlay');
+        const replayBtn = document.getElementById('replay-btn');
+        
+        if (overlay) {
+            // Activamos el fondo y los eventos del mouse para poder dar click
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            overlay.classList.add('opacity-100', 'pointer-events-auto');
+        }
+        
+        if (replayBtn) {
+            // Aparece el botón de reinicio suavemente 2.5 segundos después del texto
+            setTimeout(() => {
+                replayBtn.classList.remove('opacity-0');
+                replayBtn.classList.add('opacity-100');
+            }, 2500);
+        }
+        
+        isPlaying = false;
+        musicToggle.classList.remove('playing');
+        musicToggle.classList.add('pulse-music');
+    });
+
+    // NUEVO: Función para reiniciar la experiencia con efecto mágico
+    window.replayExperience = function(e) {
+        // Coordenadas para el efecto de explosión desde donde se hizo clic
+        let clickX = w / 2;
+        let clickY = h / 2;
+        if(e) {
+            clickX = e.clientX;
+            clickY = e.clientY;
+        }
+
+        // 1. Onda Expansiva
+        shockwaves.push({ x: clickX, y: clickY, radius: 10, alpha: 1, color: '236, 72, 153' });
+
+        // 2. Explosión mágica de corazones
+        for(let i=0; i<80; i++) {
+            let p = new Particle(clickX, clickY, false, true);
+            p.isHeart = true;
+            p.size = Math.random() * 1.2 + 0.4;
+            particles.push(p);
+        }
+
+        // 3. Ocultar la pantalla final
+        const overlay = document.getElementById('song-end-overlay');
+        const replayBtn = document.getElementById('replay-btn');
+        overlay.classList.remove('opacity-100', 'pointer-events-auto');
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+        replayBtn.classList.remove('opacity-100');
+        replayBtn.classList.add('opacity-0');
+
+        // 4. Scroll suave hacia el inicio de la página
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // 5. Reiniciar música
+        music.currentTime = 0;
+        music.play().then(() => {
+            isPlaying = true;
+            musicToggle.classList.add('playing');
+            musicToggle.classList.remove('pulse-music');
+        }).catch(err => console.log("Audio bloqueado:", err));
+    };
 
     // Iniciar magia
     resize();
